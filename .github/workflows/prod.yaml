@@ -1,11 +1,35 @@
-name: Deploy React App
+name: Deploy to Production
 
 on:
   push:
     branches:
-      - main  # Adjust this if your deployment branch is different
+      - main
 
 jobs:
+  build:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate with GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+      - name: Configure Docker for GCP Artifact Registry
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev
+
+      - name: Build and Tag Docker Image
+        run: |
+          docker build -t ${{ secrets.ARTIFACT_REGISTRY_REPO }}/react-app-repo:prod .
+
+      - name: Push Image to Artifact Registry
+        run: |
+          docker push ${{ secrets.ARTIFACT_REGISTRY_REPO }}/react-app-repo:prod
+
   deploy:
     runs-on: ubuntu-latest
 
