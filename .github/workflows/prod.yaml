@@ -45,7 +45,7 @@ jobs:
         with:
           credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
 
-      # Configure Docker authentication for Google Artifact Registry
+      # Configure Docker authentication for Google Artifact Registry.
       - name: Configure Docker Authentication
         run: |
           gcloud auth configure-docker us-central1-docker.pkg.dev
