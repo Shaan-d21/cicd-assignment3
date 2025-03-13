@@ -35,22 +35,22 @@ jobs:
     needs: build
 
     steps:
-      # Checkout the repository
+      # ✅ Checkout the repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Authenticate with Google Cloud using the Service Account Key from GitHub Secrets
+      # ✅ Authenticate with Google Cloud
       - name: Authenticate with Google Cloud
         uses: google-github-actions/auth@v1
         with:
           credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
 
-      # Configure Docker to authenticate with Google Artifact Registry
+      # ✅ Configure Docker authentication for Google Artifact Registry
       - name: Configure Docker Authentication
         run: |
           gcloud auth configure-docker us-central1-docker.pkg.dev
 
-      # Pull the latest Docker image and deploy it on the VM
+      # ✅ Deploy via SSH
       - name: Deploy React App via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -58,7 +58,11 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
+            echo "${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}" > /tmp/gcp-key.json
+            gcloud auth activate-service-account --key-file=/tmp/gcp-key.json
+            gcloud auth configure-docker us-central1-docker.pkg.dev
             sudo docker pull us-central1-docker.pkg.dev/optimum-agency-453414-m1/react-app-repo/react-app-repo:prod
             sudo docker stop react-app || true
             sudo docker rm react-app || true
             sudo docker run -d -p 80:80 --name react-app us-central1-docker.pkg.dev/optimum-agency-453414-m1/react-app-repo/react-app-repo:prod
+            rm /tmp/gcp-key.json  # Clean up key file
