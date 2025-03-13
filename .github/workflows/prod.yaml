@@ -35,22 +35,22 @@ jobs:
     needs: build
 
     steps:
-      # ✅ Checkout the repository
+      # Checkout the repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # ✅ Authenticate with Google Cloud
+      # Authenticate with Google Cloud
       - name: Authenticate with Google Cloud
         uses: google-github-actions/auth@v1
         with:
           credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
 
-      # ✅ Configure Docker authentication for Google Artifact Registry
+      # Configure Docker authentication for Google Artifact Registry
       - name: Configure Docker Authentication
         run: |
           gcloud auth configure-docker us-central1-docker.pkg.dev
 
-      # ✅ Deploy via SSH
+      # Deploy via SSH
       - name: Deploy React App via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
