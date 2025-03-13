@@ -1,0 +1,49 @@
+name: Deploy to Development
+
+on:
+  push:
+    branches:
+      - dev
+
+jobs:
+  build:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate with GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+      - name: Configure Docker for GCP Artifact Registry
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev
+
+      - name: Build and Tag Docker Image
+        run: |
+          docker build -t ${{ secrets.ARTIFACT_REGISTRY_REPO }}/react-app:dev .
+      
+      - name: Push Image to Artifact Registry
+        run: |
+          docker push ${{ secrets.ARTIFACT_REGISTRY_REPO }}/react-app:dev
+
+  deploy:
+    name: Deploy to VM
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: SSH into VM and Deploy
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            docker pull ${{ secrets.ARTIFACT_REGISTRY_REPO }}/react-app:dev
+            docker stop react-app || true
+            docker rm react-app || true
+            docker run -d -p 80:80 --name react-app ${{ secrets.ARTIFACT_REGISTRY_REPO }}/react-app:dev
