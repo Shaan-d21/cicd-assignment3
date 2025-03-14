@@ -7,62 +7,39 @@ on:
 
 jobs:
   build:
-    name: Build and Push Docker Image
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v3
 
-      - name: Authenticate with GCP
-        uses: google-github-actions/auth@v2
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
         with:
-          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Configure Docker for GCP Artifact Registry
-        run: gcloud auth configure-docker us-central1-docker.pkg.dev
-
-      - name: Build and Tag Docker Image
+      - name: Login to AWS ECR
         run: |
-          docker build -t ${{ secrets.ARTIFACT_REGISTRY_REPO }}/react-app-repo:prod .
+          aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.ECR_REPOSITORY }}
 
-      - name: Push Image to Artifact Registry
+      - name: Build and Push Docker Image
         run: |
-          docker push ${{ secrets.ARTIFACT_REGISTRY_REPO }}/react-app-repo:prod
+          docker build -t ${{ secrets.ECR_REPOSITORY }}:prod .
+          docker push ${{ secrets.ECR_REPOSITORY }}:prod
 
   deploy:
     runs-on: ubuntu-latest
     needs: build
-
     steps:
-      # Checkout the repository
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      # Authenticate with Google Cloud
-      - name: Authenticate with Google Cloud
-        uses: google-github-actions/auth@v1
+      - name: SSH into EC2 and Deploy
+        uses: appleboy/ssh-action@master
         with:
-          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
-
-      # Configure Docker authentication for Google Artifact Registry.
-      - name: Configure Docker Authentication
-        run: |
-          gcloud auth configure-docker us-central1-docker.pkg.dev
-
-      # Deploy via SSH
-      - name: Deploy React App via SSH
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            echo "${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}" > /tmp/gcp-key.json
-            gcloud auth activate-service-account --key-file=/tmp/gcp-key.json
-            gcloud auth configure-docker us-central1-docker.pkg.dev
-            sudo docker pull us-central1-docker.pkg.dev/optimum-agency-453414-m1/react-app-repo/react-app-repo:prod
-            sudo docker stop react-app || true
-            sudo docker rm react-app || true
-            sudo docker run -d -p 80:80 --name react-app us-central1-docker.pkg.dev/optimum-agency-453414-m1/react-app-repo/react-app-repo:prod
-            rm /tmp/gcp-key.json  # Clean up key file
+            docker stop my-app || true
+            docker rm my-app || true
+            docker pull ${{ secrets.ECR_REPOSITORY }}:prod
+            docker run -d -p 80:80 --name my-app ${{ secrets.ECR_REPOSITORY }}:prod
