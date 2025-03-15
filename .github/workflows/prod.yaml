@@ -9,7 +9,7 @@ env:
   AWS_REGION: us-east-1
   ECR_REPOSITORY: my-app  
   IMAGE_TAG: prod
-  EC2_INSTANCE_IP: 44.211.204.32  
+  EC2_INSTANCE_IP: 44.201.140.54  
   EC2_USER: ubuntu  
   APP_PORT: 3000  # Define app port
 
